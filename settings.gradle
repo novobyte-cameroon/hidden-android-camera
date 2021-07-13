@@ -1,0 +1,2 @@
+rootProject.name = "Hidden Camera"
+include ':app'
